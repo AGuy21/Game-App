@@ -6,7 +6,7 @@ import Animated, {  BounceInLeft, FadeInDown, FlipInXUp, useSharedValue,  } from
 import {widthPercentageToDP as wp, heightPercentageToDP as hp} from 'react-native-responsive-screen';
 import { FIREBASE_AUTH, FIREBASE_DB } from '../FirebaseConfig';
 import { addDoc, count, doc, getDoc, setDoc } from 'firebase/firestore';
-import { router } from 'expo-router';
+import { Slot, router } from 'expo-router';
 import LoadingScreen from '../components/THISONE/Loading';
 import { UserContext } from './_layout';
 
@@ -19,13 +19,18 @@ const UsernameEntry = () => {
   
   const [ loading, setLoading] = useState(false)
   const [ dataRetrieved, setDataRetrieved] = useState(false) // to only set username when data is retrived (prevents bugs)
+  const [ error, setError ] = useState(false)
 
   const auth = FIREBASE_AUTH; // to use firebase authentication to get user info
   const docRef =  doc(FIREBASE_DB, 'count', auth.currentUser?.email ) // document refrence for user data fetching and saving
 
   const saveUserName = async () => { // this gets run on when the user sets a username
-    const userNameSet = await setDoc( docRef , { Username: username}) // makes the first document with the users email with his username
-    router.replace('/CharChoice') // when this is run goes to main page
+    if (error) {
+      return
+    } else {
+      const userNameSet = await setDoc( docRef , { Username: username}) // makes the first document with the users email with his username
+      router.replace('/CharChoice') // when this is run goes to main page
+    }
   }
 
   const getData = async () => { //  gets user data
@@ -75,11 +80,21 @@ const UsernameEntry = () => {
     }
   }, [dataRetrieved])
 
+  useEffect(() => {
+    if (username) {
+      if (username?.length > 10) {
+        setError(true)
+      } else {
+        setError(false)
+      }
+    }
+  }, [username])
   return (
     <View style={styles.container}>
       { loading ? ( <LoadingScreen />
       ) : (
         <View style={styles.container}>
+
           <Animated.View
             entering={BounceInLeft.delay(250)}
             style={styles.inputMargins}
@@ -95,7 +110,17 @@ const UsernameEntry = () => {
               value={username}
             />
           </Animated.View>
-
+          { error ? (
+            <Animated.View
+              entering={FlipInXUp.delay(250)}
+            >
+              <Text style={{ fontWeight: '600', marginLeft: wp(1), marginVertical: hp(.25), color:'red' }}>
+                Username too long!
+              </Text>
+            </Animated.View>
+          ) : (
+            <Slot />
+          )}
           <Animated.View
               style={styles.buttonContainer}
               entering={FadeInDown.delay(750).springify().stiffness(70).damping(5).mass(1.25).restSpeedThreshold(5).withInitialValues({ transform: [{ translateY: 35}]})}
@@ -153,5 +178,5 @@ const styles = StyleSheet.create({
       textAlign: 'center',
       marginBottom: hp(10),
       fontWeight: '600'
-    }
+    },
   })
